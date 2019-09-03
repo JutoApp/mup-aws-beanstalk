@@ -18,7 +18,7 @@ import {
   gracefulShutdownAutomationDocument,
   passRolePolicy
 } from './policies';
-import upload, { uploadEnvFile } from './upload';
+import upload, { uploadEnvFile, envFileContent } from './upload';
 import {
   archiveApp,
   injectFiles
@@ -44,7 +44,8 @@ import {
   createUniqueName,
   checkLongEnvSafe,
   createVersionDescription,
-  ensureSsmDocument
+  ensureSsmDocument,
+  getEnvFileContent
 } from './utils';
 import {
   largestVersion,
@@ -293,6 +294,7 @@ export async function deploy(api) {
 
     if (!migrated) {
       // We know the bundle now supports longEnvVars, so it is safe to migrate
+      await waitForEnvReady(config, true);
       await api.runCommand('beanstalk.reconfig');
     }
   }
@@ -503,10 +505,22 @@ export async function reconfig(api) {
       safeToReconfig
     } = checkLongEnvSafe(ConfigurationSettings, api.commandHistory, config.app);
     let nextEnvVersion = 0;
+    let uploadEnv = true;
+
     if (safeToReconfig) {
       const currentEnvVersion = await largestEnvVersion(api);
-      nextEnvVersion = currentEnvVersion + 1;
+      const oldContent = await getEnvFileContent(api, currentEnvVersion);
+      const newContent = envFileContent(config.app.env, api.getSettings());
+
+      if (oldContent === newContent) {
+        // The content is the same so we re-use the previous env file
+        uploadEnv = false;
+        nextEnvVersion = currentEnvVersion;
+      } else {
+        nextEnvVersion = currentEnvVersion + 1;
+      }
     }
+
     const desiredEbConfig = createDesiredConfig(
       api.getConfig(),
       api.getSettings(),
@@ -520,7 +534,7 @@ export async function reconfig(api) {
       desiredEbConfig.OptionSettings
     );
 
-    if (longEnvEnabled) {
+    if (longEnvEnabled && uploadEnv) {
       await uploadEnvFile(bucket, nextEnvVersion, config.app.env, api.getSettings());
       if (!safeToReconfig) {
         // Reconfig will be run again after deploy to migrate.
@@ -575,13 +589,21 @@ export async function status(api) {
   const {
     environment
   } = names(api.getConfig());
+  console.log('=> AWS Elastic Beanstalk Status');
 
-  const result = await beanstalk.describeEnvironmentHealth({
-    AttributeNames: [
-      'All'
-    ],
-    EnvironmentName: environment
-  }).promise();
+  let result;
+  try {
+    await beanstalk.describeEnvironmentHealth({
+      AttributeNames: [
+        'All'
+      ],
+      EnvironmentName: environment
+    }).promise();
+  } catch (e) {
+    console.log('Envrionment has not been setup.');
+    return;
+  }
+
   const {
     InstanceHealthList
   } = await beanstalk.describeInstancesHealth({
