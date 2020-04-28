@@ -1,8 +1,7 @@
-## Next
+## 0.6.3 - April 18, 2020
 
-- Environment file is only changed when its content changes. This will improve deploy speed when `longEnvVars` is true.
-- Fix environment sometimes not ready when trying to migrate to using environment variables stored in s3
-- Fix `mup status` command 
+- Fix memory leak in health-check.js (@jimrandomh)
+- Fix nginx config for fonts in packages (@cunneen)
 
 ## 0.6.2 - November 15, 2018
 
