@@ -13,6 +13,8 @@ echo "Node version"
 echo $(node --version)
 echo "Npm version"
 echo $(npm --version)
+echo "npm install --production"
+npm install --production
 
 export METEOR_SETTINGS=$(node -e 'console.log(decodeURIComponent(process.env.METEOR_SETTINGS_ENCODED))')
 
