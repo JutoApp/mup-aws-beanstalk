@@ -1,6 +1,6 @@
 {
   "name": "juto-mup-aws-beanstalk",
-  "version": "0.6.5-ebextensions",
+  "version": "0.6.6-ebextensions-npminstall",
   "description": "Deploy apps to AWS Elastic Beanstalk using Meteor Up",
   "main": "index.js",
   "scripts": {
